@@ -1,0 +1,137 @@
+---
+- hosts: all
+  become: true
+# tasks file for centos7-lemp
+# Install LEMP Packages
+  tasks:
+    - name: install nginx
+      yum: name={{ item }} 
+           state=present
+      loop: [ 'epel-release', 'nginx' ]
+
+    - name: install mariadb
+      yum:
+        name:
+          - mariadb-server
+          - mariadb
+        state: latest
+
+    - name: install php
+      yum:
+        name:
+          - http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+          - yum-utils
+          - php
+          - php-mysqlnd
+          - php-fpm
+        state: latest
+
+# Start services and allow ports firewall
+    - name: start services
+      service:
+        name: '{{ item }}'
+        state: started
+        enabled: true
+      loop:
+      - nginx
+      - mariadb
+      - php-fpm
+
+    - name: open http/https firewall ports
+      firewalld:
+        zone: public
+        service: '{{ item }}'
+        immediate: true
+        permanent: yes
+        state: enabled
+      loop:
+      - http
+      - https
+      notify: restart firewalld
+
+#Setup and config nginx, php
+    - name: make nginx owner of web directory
+      file:
+        path: /usr/share/nginx/html
+        recurse: yes
+        owner: demo
+        group: demo
+
+    - name: change php user to nginx
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^{{ item.apache }}'
+        line: '{{ item.nginx }}'
+      loop:
+      - user:
+        apache: "user ="
+        nginx: "user = nginx"
+      - group: 
+        apache: "group ="
+        nginx: "group = nginx"
+      notify: restart php
+
+    - name: listen on unix socket not tcp/ip
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: "listen ="
+        line: "listen = /var/run/php-fpm/php-fpm.sock"
+        state: present
+      notify: restart php
+
+    - name: change php owner, group settings for the socket file
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^{{ item.nobody }}'
+        line: '{{ item.nginx }}'
+      loop:
+      - listen.owner:
+        nobody: "listen.owner ="
+        nginx: "listen.owner = nginx"
+      - listen.group:
+        nobody: "listen.group ="
+        nginx: "listen.group = nginx"
+      notify: restart php
+
+# Using Templates
+    - name: Create new file Configuring Nginx to Process PHP Pages
+      template:
+        src: templates/default.conf.j2
+        dest: /etc/nginx/conf.d/default.conf
+
+    - name: create php test page
+      template:
+        src: templates/info.php.j2
+        dest: /usr/share/nginx/html/info.php
+        owner: demo
+        group: demo
+      notify:
+      - restart nginx
+      - restart php
+
+# handlers file for centos7-lemp
+  handlers:
+    - name: restart firewalld
+      service:
+        name: firewalld
+        state: restarted
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+
+    - name: restart mariadb
+      service:
+        name: mariadb
+        state: restarted
+
+    - name: restart php
+      service:
+        name: php-fpm
+        state: restarted
+
+    - name: restart mariadb
+      service:
+        name: mariadb
+        state: restarted

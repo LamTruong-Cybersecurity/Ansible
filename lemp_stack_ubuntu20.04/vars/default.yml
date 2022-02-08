@@ -1,0 +1,5 @@
+---
+mysql_root_password: "123"
+http_host: "lamtruong"
+http_conf: "lamtruong.conf"
+http_port: "80"
