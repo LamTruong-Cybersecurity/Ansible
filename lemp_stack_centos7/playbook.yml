@@ -119,6 +119,15 @@
       - restart nginx
       - restart php
 
+    - name: create file css for index test page
+      template:
+        src: templates/main.css.j2
+        dest: /usr/share/nginx/html/main.css
+        owner: demo
+        group: demo
+      notify:
+      - restart nginx
+      - restart php
 # handlers file for centos7-lemp
   handlers:
     - name: restart firewalld
