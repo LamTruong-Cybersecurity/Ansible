@@ -109,6 +109,16 @@
       - restart nginx
       - restart php
 
+    - name: create file index test page
+      template:
+        src: templates/index.html.j2
+        dest: /usr/share/nginx/html/index.html
+        owner: demo
+        group: demo
+      notify:
+      - restart nginx
+      - restart php
+
 # handlers file for centos7-lemp
   handlers:
     - name: restart firewalld
